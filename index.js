@@ -2,9 +2,13 @@
 const fetch = require('node-fetch');
 const commandLineArgs = require('command-line-args');
 const getUsage = require('command-line-usage');
+var twilio = require('twilio');
 
 // Get partNumbers from json file.
 const partNumbers = require('./partNumbers.json');
+
+// Get twillo config from json file
+const twilioConfig = require('./twilio.json');
 
 // Define command line args accepted.
 const optionDefinitions = [
@@ -150,11 +154,21 @@ function processResponse(data) {
 function getStoresAvailable() {
   // Update lastRequestTimestamp.
   lastRequestTimestamp = Date.now();
+  //console.log("Calling apple at timestamp " + lastRequestTimestamp);
+  //console.log("Calling apple at timestamp " + lastRequestTimestamp);
 
   return fetch(endpoint)
-    .then(stream => stream.json())
-    .catch(error => process.stderr.write('Fetch Error :-S', error))
-    .then(data => processResponse(data));
+    .then(function(res) {
+      return res.json();
+    //}).catch(function (error) {
+    //  process.stderr.write('Fetch Error :-S', error);
+    //  return [];
+    }).then(function(json) {
+      return processResponse(json);
+    });
+    //.then(stream => stream.json())
+    //.catch(error => process.stderr.write('Fetch Error :-S', error))
+    //.then(data => processResponse(data));
 }
 
 /**
@@ -173,6 +187,21 @@ function displayStoresAvailable(storesAvailable) {
   // Output the message.
   console.log(`The device is currently available at ${storesAvailable.length} stores near you:`);
   console.log(storesAvailableStr);
+
+  //notify twillo
+  // Find your account sid and auth token in your Twilio account Console.
+  const client = new twilio(twilioConfig.twilio.account_sid, twilioConfig.twilio.auth_token);
+  Promise.all([client.messages.create({
+    to: twilioConfig.sms.number,
+    from: twilioConfig.twilio.number,
+    body: 'iPhone X Found at ' + storesAvailableStr
+  })//.resolve("Success");
+    .then((message) => process.exit())
+    .catch((reason) => process.exit())]);
+    //.resolve();
+
+  console.log("Completed displayStoresAvailable");
+
 }
 
 /**
@@ -193,7 +222,7 @@ async function requestLoop() {
   } else {
     // The device is available. Show that information to the user and exit the program.
     displayStoresAvailable(storesAvailable);
-    process.exit();
+
   }
 }
 

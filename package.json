@@ -12,10 +12,11 @@
   "dependencies": {
     "command-line-args": "^4.0.7",
     "command-line-usage": "^4.0.1",
-    "node-fetch": "^1.7.3"
+    "node-fetch": "^1.7.3",
+    "twilio": "^3.9.2"
   },
   "devDependencies": {
-    "eslint": "^4.10.0",
+    "eslint": "^4.11.0",
     "eslint-config-airbnb-base": "^12.1.0",
     "eslint-plugin-import": "^2.8.0"
   }
