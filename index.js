@@ -2,7 +2,7 @@
 const fetch = require('node-fetch');
 const commandLineArgs = require('command-line-args');
 const getUsage = require('command-line-usage');
-var twilio = require('twilio');
+const twilio = require('twilio');
 
 // Get partNumbers from json file.
 const partNumbers = require('./partNumbers.json');
@@ -105,6 +105,8 @@ const endpoint = `https://www.apple.com/shop/retail/pickup-message?pl=true&cppar
 // Keep track of the last request time.
 let lastRequestTimestamp = null;
 
+let lastSuccessfulRequestTimestamp = null;
+
 /**
  * Update program status display
  *
@@ -117,9 +119,13 @@ function updateStatus() {
   }
 
   // Get the amount of time elapsed since last request.
-  const timeDelta = Date.now() - lastRequestTimestamp;
+  const currTime = Date.now();
+  const timeDelta = currTime - lastRequestTimestamp;
   const timeInSeconds = Math.floor(timeDelta / 1000);
-  process.stdout.write(`Status: Device not available. Last request made ${timeInSeconds} seconds ago\r`);
+  const successTimeDelta = currTime - lastSuccessfulRequestTimestamp;
+  const timeSuccessInSeconds = Math.floor(successTimeDelta / 1000);
+  process.stdout.write(`Status: Device not available. Last request made ${timeInSeconds} seconds ago. Last succesful request made ${timeSuccessInSeconds} seconds ago\r`);
+
 }
 
 /**
@@ -154,21 +160,18 @@ function processResponse(data) {
 function getStoresAvailable() {
   // Update lastRequestTimestamp.
   lastRequestTimestamp = Date.now();
-  //console.log("Calling apple at timestamp " + lastRequestTimestamp);
-  //console.log("Calling apple at timestamp " + lastRequestTimestamp);
 
   return fetch(endpoint)
     .then(function(res) {
+      lastSuccessfulRequestTimestamp = lastRequestTimestamp;
       return res.json();
-    //}).catch(function (error) {
-    //  process.stderr.write('Fetch Error :-S', error);
-    //  return [];
+    }).catch(function (error) {
+      console.warn(error);
+      return { body: { stores: [] } };
     }).then(function(json) {
       return processResponse(json);
     });
-    //.then(stream => stream.json())
-    //.catch(error => process.stderr.write('Fetch Error :-S', error))
-    //.then(data => processResponse(data));
+
 }
 
 /**
@@ -188,19 +191,18 @@ function displayStoresAvailable(storesAvailable) {
   console.log(`The device is currently available at ${storesAvailable.length} stores near you:`);
   console.log(storesAvailableStr);
 
-  //notify twillo
+  // notify twillo
   // Find your account sid and auth token in your Twilio account Console.
   const client = new twilio(twilioConfig.twilio.account_sid, twilioConfig.twilio.auth_token);
   Promise.all([client.messages.create({
     to: twilioConfig.sms.number,
     from: twilioConfig.twilio.number,
-    body: 'iPhone X Found at ' + storesAvailableStr
-  })//.resolve("Success");
-    .then((message) => process.exit())
-    .catch((reason) => process.exit())]);
-    //.resolve();
+    body: 'iPhone X Found at ${storesAvailableStr}'
+  })
+    .then(() => process.exit())
+    .catch(() => process.exit())]);
 
-  console.log("Completed displayStoresAvailable");
+  console.log('Completed displayStoresAvailable');
 
 }
 
